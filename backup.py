@@ -2,10 +2,12 @@
 from ftplib import FTP_TLS
 import zipfile
 import os
+import sys
 import pickle
 import subprocess
 import hashlib
 import socket
+
 
 
 # Put this in a class with picklein and out
@@ -59,13 +61,18 @@ class Backup:
 
 	def compress_files(self,lists):
 		# Compress & encrypt files and save them inside tmp
-		for item in lists:
-				name = hashlib.md5(item[1].encode())
-				#rc = subprocess.call(['7z', 'a', '-p' + self.ENCRYPTION_KEY, '-y', self.TMP_FOLDER + name.hexdigest() + '.7z', '-mhe'] + 
-		        #             [item[0]])
 
-				rc = subprocess.call(r'"C:\Program Files\7-zip\7z.exe" a -p' + self.ENCRYPTION_KEY + ' "' + self.TMP_FOLDER + name.hexdigest() + '.7z' + '" "' + item[0] + '" -mhe')
-
+		if sys.platform == "linux" or sys.platform == "linux2" or platform == "darwin":
+		    # linux & mac (mac hasnt been tested)
+			for item in lists:
+					name = hashlib.md5(item[1].encode())
+					rc = subprocess.call(['7z', 'a', '-p' + self.ENCRYPTION_KEY, '-y', self.TMP_FOLDER + name.hexdigest() + '.7z', '-mhe'] + [item[0]])
+		elif sys.platform == "win32":
+			#windows (windows hasnt been properely tested)
+			for item in lists:
+					name = hashlib.md5(item[1].encode())
+					rc = subprocess.call(r'"C:\Program Files\7-zip\7z.exe" a -p' + self.ENCRYPTION_KEY + ' "' + self.TMP_FOLDER + name.hexdigest() + '.7z' + '" "' + item[0] + '" -mhe')
+	
 	def clean_up(self):
 		listdir = os.listdir(self.TMP_FOLDER)
 		for item in listdir:
