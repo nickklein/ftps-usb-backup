@@ -62,7 +62,7 @@ class Backup:
 	def compress_files(self,lists):
 		# Compress & encrypt files and save them inside tmp
 
-		if sys.platform == "linux" or sys.platform == "linux2" or platform == "darwin":
+		if sys.platform == "linux" or sys.platform == "linux2" or sys.platform == "darwin":
 		    # linux & mac (mac hasnt been tested)
 			for item in lists:
 					name = hashlib.md5(item[1].encode())
@@ -121,7 +121,7 @@ class Backup:
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.settimeout(5)
 try:
-    s.connect(('192.168.1.131', 21))
+    s.connect(('192.168.1.xxx', 21))
     backup = Backup()
 except socket.error as e:
     print("Error on connect")
