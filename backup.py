@@ -20,7 +20,7 @@ class Backup:
         ['/home/NAME/Music/', 'Music'],
 	]
 	PICKLE_FILEPATH = '/home/NAME/Sites/ftps-backup/filesizes.pickle'
-	PICKLE_ACTIVE_FILEPATH = '/home/tyrion/Backup/active.pickle'
+	PICKLE_ACTIVE_FILEPATH = '/home/NAME/Sites/ftps-backup/active.pickle'
 
 	
 
