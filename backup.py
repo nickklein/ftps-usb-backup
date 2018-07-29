@@ -20,6 +20,9 @@ class Backup:
         ['/home/NAME/Music/', 'Music'],
 	]
 	PICKLE_FILEPATH = '/home/NAME/Sites/ftps-backup/filesizes.pickle'
+	PICKLE_ACTIVE_FILEPATH = '/home/tyrion/Backup/active.pickle'
+
+	
 
 	FTP_HOST = '192.168.1.xxx'
 	FTP_USER = 'NAME'
@@ -30,34 +33,44 @@ class Backup:
 	TMP_FOLDER = '/home/NAME/temp/'
 
 	def __init__(self):
-		if os.path.getsize(self.PICKLE_FILEPATH) > 0:
-			filesizes_list = self.pickle_load(self.PICKLE_FILEPATH)
-			updated = []
-			success = 0
+		active_script = self.pickle_load(self.PICKLE_ACTIVE_FILEPATH)
 
-			for folder in self.FOLDERS:
-				size = self.folder_size(folder[0])
-				for filesizes in filesizes_list:
-					# if name matches and filesize isn't the same as the pickle file then send to backup
-					if filesizes[0] == folder[0] and filesizes[2] != size:
-						success = 1
-						updated.append([folder[0], folder[1]])
-			
-			# Dump to pickle file if there's a change made
-			if success:
-				self.compress_files(updated)
+		if active_script is 0:
+			# Backup is now active. Prevent it from running again
+			self.pickle_dump(self.PICKLE_ACTIVE_FILEPATH, 1)
+
+			if os.path.getsize(self.PICKLE_FILEPATH) > 0:
+				filesizes_list = self.pickle_load(self.PICKLE_FILEPATH)
+
+				updated = []
+				success = 0
+
+				for folder in self.FOLDERS:
+					size = self.folder_size(folder[0])
+					for filesizes in filesizes_list:
+						# if name matches and filesize isn't the same as the pickle file then send to backup
+						if filesizes[0] == folder[0] and filesizes[2] != size:
+							success = 1
+							updated.append([folder[0], folder[1]])
+				
+				# Dump to pickle file if there's a change made
+				if success:
+					self.clean_up()
+					self.compress_files(updated)
+					self.upload_files()
+					self.clean_up()
+					self.prep_fz_pickle()
+
+			else:
+				#dump to pickle file if the pickle file doesnt exist or is empty
+				self.clean_up()
+				self.compress_files(self.FOLDERS)
 				self.upload_files()
 				self.clean_up()
-				self.pickle_dump()
+				self.prep_fz_pickle()
 
-		else:
-			#dump to pickle file if the pickle file doesnt exist or is empty
-			self.compress_files(self.FOLDERS)
-			self.upload_files()
-			self.clean_up()
-			self.pickle_dump()
-
-		print('All done!')
+			self.pickle_dump(self.PICKLE_ACTIVE_FILEPATH, 0)
+			print('All done!')
 
 	def compress_files(self,lists):
 		# Compress & encrypt files and save them inside tmp
@@ -101,19 +114,22 @@ class Backup:
 	            total += self.folder_size(entry.path)
 	    return total
 
+	def prep_fz_pickle(self):
+		folders_with_stat = []
+		for folder in self.FOLDERS:
+			size = self.folder_size(folder[0])
+			folders_with_stat.append([folder[0], folder[1], size])
+		self.pickle_dump(self.PICKLE_FILEPATH, folders_with_stat)
+
 	def pickle_load(self, filepath):
 		filesizes_pickle = open(filepath,'rb')
 		filesizes_list = pickle.load(filesizes_pickle)
 		return filesizes_list
 
-	def pickle_dump(self):
-		folders_with_stat = []
-		for folder in self.FOLDERS:
-			size = self.folder_size(folder[0])
-			folders_with_stat.append([folder[0], folder[1], size])
+	def pickle_dump(self, filepath, arr):
+		file = open(filepath,'wb')
+		pickle.dump(arr, file)
 
-		file = open(self.PICKLE_FILEPATH,'wb')
-		pickle.dump(folders_with_stat, file)
 
 
 
