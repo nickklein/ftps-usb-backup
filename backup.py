@@ -22,7 +22,7 @@ class Backup:
 	PICKLE_FILEPATH = '/home/NAME/Sites/ftps-backup/filesizes.pickle'
 	PICKLE_ACTIVE_FILEPATH = '/home/NAME/Sites/ftps-backup/active.pickle'
 
-	
+
 
 	FTP_HOST = '192.168.1.xxx'
 	FTP_USER = 'NAME'
@@ -39,8 +39,10 @@ class Backup:
 			# Backup is now active. Prevent it from running again
 			self.pickle_dump(self.PICKLE_ACTIVE_FILEPATH, 1)
 
+			# Check if pickle file is empty
 			if os.path.getsize(self.PICKLE_FILEPATH) > 0:
 				filesizes_list = self.pickle_load(self.PICKLE_FILEPATH)
+
 
 				updated = []
 				success = 0
@@ -53,24 +55,26 @@ class Backup:
 							success = 1
 							updated.append([folder[0], folder[1]])
 				
-				# Dump to pickle file if there's a change made
+				# Clean up old files, compress files, upload files, clean up again, and update the filesize pickle fileade
 				if success:
-					self.clean_up()
-					self.compress_files(updated)
-					self.upload_files()
-					self.clean_up()
-					self.prep_fz_pickle()
-
+					self.start_backup(updated)
 			else:
-				#dump to pickle file if the pickle file doesnt exist or is empty
-				self.clean_up()
-				self.compress_files(self.FOLDERS)
-				self.upload_files()
-				self.clean_up()
-				self.prep_fz_pickle()
+				# Clean up old files, compress files, upload files, clean up again, and update the filesize pickle fileade
+				self.start_backup(self.FOLDERS)
 
 			self.pickle_dump(self.PICKLE_ACTIVE_FILEPATH, 0)
 			print('All done!')
+
+	def start_backup(self,folders):
+		self.clean_up()
+		self.compress_files(folders)
+		self.upload_files()
+		self.clean_up()
+
+		# Save updated folder sizes to pickle file for next run
+		folders_with_stat = self.get_folder_stats()
+		self.pickle_dump(self.PICKLE_FILEPATH, folders_with_stat)
+
 
 	def compress_files(self,lists):
 		# Compress & encrypt files and save them inside tmp
@@ -114,12 +118,13 @@ class Backup:
 	            total += self.folder_size(entry.path)
 	    return total
 
-	def prep_fz_pickle(self):
+	def get_folder_stats(self):
 		folders_with_stat = []
 		for folder in self.FOLDERS:
 			size = self.folder_size(folder[0])
 			folders_with_stat.append([folder[0], folder[1], size])
-		self.pickle_dump(self.PICKLE_FILEPATH, folders_with_stat)
+
+		return folders_with_stat
 
 	def pickle_load(self, filepath):
 		filesizes_pickle = open(filepath,'rb')
