@@ -33,6 +33,11 @@ class Backup:
 	TMP_FOLDER = '/home/NAME/temp/'
 
 	def __init__(self):
+		# Small arguement resets active pickle. (In case uploads were aborted somehow)
+		if len(sys.argv) > 1 and sys.argv[1] == 'reset_active_pickle':
+			print('Reset pickle...')
+			self.pickle_dump(self.PICKLE_ACTIVE_FILEPATH, 0)
+
 		active_script = self.pickle_load(self.PICKLE_ACTIVE_FILEPATH)
 
 		if active_script is 0:
@@ -82,13 +87,13 @@ class Backup:
 		if sys.platform == "linux" or sys.platform == "linux2" or sys.platform == "darwin":
 		    # linux & mac (mac hasnt been tested)
 			for item in lists:
-					name = hashlib.md5(item[1].encode())
-					rc = subprocess.call(['7z', 'a', '-p' + self.ENCRYPTION_KEY, '-y', self.TMP_FOLDER + name.hexdigest() + '.7z', '-mhe'] + [item[0]])
+				name = hashlib.md5(item[1].encode())
+				rc = subprocess.call(['7z', 'a', '-p' + self.ENCRYPTION_KEY, '-y', self.TMP_FOLDER + name.hexdigest() + '.7z', '-mhe'] + [item[0]])
 		elif sys.platform == "win32":
 			#windows (windows hasnt been properely tested)
 			for item in lists:
-					name = hashlib.md5(item[1].encode())
-					rc = subprocess.call(r'"C:\Program Files\7-zip\7z.exe" a -p' + self.ENCRYPTION_KEY + ' "' + self.TMP_FOLDER + name.hexdigest() + '.7z' + '" "' + item[0] + '" -mhe')
+				name = hashlib.md5(item[1].encode())
+				rc = subprocess.call(r'"C:\Program Files\7-zip\7z.exe" a -p' + self.ENCRYPTION_KEY + ' "' + self.TMP_FOLDER + name.hexdigest() + '.7z' + '" "' + item[0] + '" -mhe')
 	
 	def clean_up(self):
 		listdir = os.listdir(self.TMP_FOLDER)
