@@ -1,5 +1,5 @@
-# ftps-backup
-Compress &amp; Encrypt, then upload it to your local FTPS. I use this script to backup my files to a computer on my local network.
+# ftps-usb-backup
+Compress &amp; Encrypt, then upload it to your local FTPS or USB drive. I use this script to backup my files to USB stick and a computer on my local network.
 
 Requirements:
 1. Python3
