@@ -132,31 +132,33 @@ class Backup:
 
 
 	def copy_to_usb(self):
-		listdir = os.listdir(self.TMP_FOLDER)
-		for item in listdir:
-			shutil.copyfile(self.TMP_FOLDER + item, self.USB_DIR + item)
+		if self.USB_BACKUP:
+			listdir = os.listdir(self.TMP_FOLDER)
+			for item in listdir:
+				shutil.copyfile(self.TMP_FOLDER + item, self.USB_DIR + item)
 
 	def upload_files(self):
+		if self.FTP_BACKUP:
+			# Check to make server is up, if yes back up files! Test
+			s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			s.settimeout(5)
+			try:
+			    s.connect((self.FTP_HOST, 21))
 
-		# Check to make server is up, if yes back up files! Test
-		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.settimeout(5)
-		try:
-		    s.connect((self.FTP_HOST, 21))
+			    listdir = os.listdir(self.TMP_FOLDER)
 
-		    listdir = os.listdir(self.TMP_FOLDER)
+			    ftps = FTP_TLS(self.FTP_HOST)
+			    ftps.login(self.FTP_USER, self.FTP_PASSWORD)
+			    ftps.set_pasv(True)
 
-		    ftps = FTP_TLS(self.FTP_HOST)
-		    ftps.login(self.FTP_USER, self.FTP_PASSWORD)
-		    ftps.set_pasv(True)
+			    for item in listdir:
+			    	ftps.storbinary('STOR ' + item, open(self.TMP_FOLDER + item,'rb'), 1024)
 
-		    for item in listdir:
-		    	ftps.storbinary('STOR ' + item, open(self.TMP_FOLDER + item,'rb'), 1024)
+			    ftps.quit()
+			except socket.error as e:
+				print("Error on connect")
+			s.close()
 
-		    ftps.quit()
-		except socket.error as e:
-			print("Error on connect")
-		s.close()
 
 
 	def folder_size(self, path='.'):
