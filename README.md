@@ -4,7 +4,7 @@ Compress &amp; Encrypt, then upload it to your local FTPS or USB drive. I use th
 Requirements:
 1. Python3
 2. 7-zip (Linux, Mac, Windows)
-3. Computer with FTPS set up
+3. Computer with FTPS set up OR USB drive
 
 ## How to install 7-zip:
 ### Linux:
