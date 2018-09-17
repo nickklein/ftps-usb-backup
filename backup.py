@@ -24,8 +24,9 @@ class Backup:
 	]
 
 	#File Paths to pickle files
-	PICKLE_FILEPATH = '/home/NAME/Backup/filesizes.pickle'
-	PICKLE_ACTIVE_FILEPATH = '/home/NAME/Backup/active.pickle'
+	PICKLE_FTP_FILEPATH = 'pickles/ftp_filesizes.pickle'
+	PICKLE_USB_FILEPATH = 'pickles/usb_filesizes.pickle'	
+	PICKLE_ACTIVE_FILEPATH = 'pickles/active.pickle'
 
 	FTP_BACKUP = True
 	FTP_HOST = '192.168.1.xxx'
@@ -48,14 +49,27 @@ class Backup:
 
 		active_script = self.pickle_load(self.PICKLE_ACTIVE_FILEPATH)
 
-		if active_script is 0 and self.check_conditions():
+		if active_script is 0:
 			# Backup is now active. Prevent it from running again
 			self.pickle_dump(self.PICKLE_ACTIVE_FILEPATH, 1)
 
-			# Check if pickle file is empty
-			if os.path.getsize(self.PICKLE_FILEPATH) > 0:
-				filesizes_list = self.pickle_load(self.PICKLE_FILEPATH)
+			#FTP backup
+			if self.check_conditions('ftp'):
+				backup_info = self.check_filesizes(self.PICKLE_FTP_FILEPATH, 'ftp')
+				self.start_backup(backup_info)
 
+			#USB backup
+			if self.check_conditions('usb'):
+				backup_info = self.check_filesizes(self.PICKLE_USB_FILEPATH, 'usb')
+				self.start_backup(backup_info)
+
+			self.pickle_dump(self.PICKLE_ACTIVE_FILEPATH, 0)
+			print('All done!')
+
+	def check_filesizes(self, filepath, bktype):
+			# Check if pickle file is empty
+			if os.path.getsize(filepath) > 0:
+				filesizes_list = self.pickle_load(filepath)
 
 				updated = []
 				success = 0
@@ -70,31 +84,32 @@ class Backup:
 				
 				# Clean up old files, compress files, upload files, clean up again, and update the filesize pickle fileade
 				if success:
-					self.start_backup(updated)
+					return [updated, filepath, bktype]
+				else:
+					return [0, filepath, bktype]
 			else:
 				# Clean up old files, compress files, upload files, clean up again, and update the filesize pickle fileade
-				self.start_backup(self.FOLDERS)
+				return [self.FOLDERS, filepath, bktype]
 
-			self.pickle_dump(self.PICKLE_ACTIVE_FILEPATH, 0)
-			print('All done!')
-
-	def start_backup(self,folders):
+	def start_backup(self, info):
 		self.clean_up()
-		if self.check_conditions():
-			self.compress_files(folders)
-			self.copy_to_usb()
-			self.upload_files()
-		self.clean_up()
+		# Only execute if there has been changes in one fo the folders
+		if info[0] is not 0:
+			self.compress_files(info[0])
+			if info[2] is 'usb':
+				self.copy_to_usb()
+			if info[2] is 'ftp':
+				self.upload_files()
+			self.clean_up()
 
-		# Save updated folder sizes to pickle file for next run
-		folders_with_stat = self.get_folder_stats()
-		self.pickle_dump(self.PICKLE_FILEPATH, folders_with_stat)
+			# Save updated folder sizes to pickle file for next run
+			folders_with_stat = self.get_folder_stats()
+			self.pickle_dump(info[1], folders_with_stat)
 
 
-	def check_conditions(self):
+	def check_conditions(self, ctype):
 		success = False
-
-		if self.FTP_BACKUP:
+		if self.FTP_BACKUP and ctype is 'ftp':
 			s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			s.settimeout(5)
 			#check network backup
@@ -105,7 +120,7 @@ class Backup:
 				pass
 			s.close()
 
-		if self.USB_BACKUP:
+		if self.USB_BACKUP and ctype is 'usb':
 			if os.path.ismount(self.USB_DIR):
 				success = True
 
@@ -113,12 +128,11 @@ class Backup:
 
 	def compress_files(self,lists):
 		# Compress & encrypt files and save them inside tmp
-
 		if sys.platform == "linux" or sys.platform == "linux2" or sys.platform == "darwin":
 		    # linux & mac (mac hasnt been tested)
 			for item in lists:
 				name = hashlib.md5(item[1].encode())
-				rc = subprocess.call(['7z', 'a', '-p' + self.ENCRYPTION_KEY, '-y', self.TMP_FOLDER + name.hexdigest() + '.7z', '-mhe'] + [item[0]])
+				rc = subprocess.call(['7z', 'a', '-p' + self.ENCRYPTION_KEY, '-y', self.TMP_FOLDER + name.hexdigest() + '.7z', '-xr!node_modules', '-xr!vendor', '-xr!_ignore_backup', '-mhe'] + [item[0]])
 		elif sys.platform == "win32":
 			#windows (windows hasnt been properely tested)
 			for item in lists:
@@ -132,9 +146,11 @@ class Backup:
 
 
 	def copy_to_usb(self):
-		if self.USB_BACKUP:
+		# Check first to make sure USB Backup is True and USB stick is plugged in
+		if self.USB_BACKUP and os.path.ismount(self.USB_DIR):
 			listdir = os.listdir(self.TMP_FOLDER)
 			for item in listdir:
+				print('Copy: ' + item)
 				shutil.copyfile(self.TMP_FOLDER + item, self.USB_DIR + item)
 
 	def upload_files(self):
@@ -152,13 +168,13 @@ class Backup:
 			    ftps.set_pasv(True)
 
 			    for item in listdir:
+			    	print('Upload: ' + item)
 			    	ftps.storbinary('STOR ' + item, open(self.TMP_FOLDER + item,'rb'), 1024)
 
 			    ftps.quit()
 			except socket.error as e:
 				print("Error on connect")
 			s.close()
-
 
 
 	def folder_size(self, path='.'):
