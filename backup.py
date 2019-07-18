@@ -129,6 +129,9 @@ class Backup:
 			if os.path.ismount(self.USB_DIR):
 				success = True
 
+		if self.SFTP_BACKUP:
+			success = True
+
 		return success
 
 	def compress_files(self,lists):
