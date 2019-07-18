@@ -33,6 +33,11 @@ class Backup:
 	FTP_USER = 'NAME'
 	FTP_PASSWORD = ''
 
+	SFTP_BACKUP = True
+	SFTP_HOST = '192.168.1.xxx'
+	SFTP_USER = 'NAME'
+	SFTP_PASSWORD = ''
+
 	USB_BACKUP = True
 	USB_DIR = '/media/NAME/usb-backup/'
 
@@ -175,6 +180,17 @@ class Backup:
 			except socket.error as e:
 				print("Error on connect")
 			s.close()
+
+		if self.SFTP_BACKUP:
+			try:
+				listdir = os.listdir(self.TMP_FOLDER)
+				with pysftp.Connection(self.SFTP_HOST, username=self.SFTP_USER, password=self.SFTP_PASSWORD) as sftp:
+					for item in listdir:
+						print('Upload: ' + item)
+						sftp.put(self.TMP_FOLDER + item)
+			except socket.error as e:
+				print('Error on connect')
+
 
 
 	def folder_size(self, path='.'):
