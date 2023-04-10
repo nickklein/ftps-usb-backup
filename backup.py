@@ -8,42 +8,46 @@ import subprocess
 import hashlib
 import socket
 import shutil
-
-
+from dotenv import load_dotenv
+load_dotenv()
 
 # Put this in a class with picklein and out
 class Backup:
 
 	# Select all the directories that need to be backed up
 	FOLDERS = [
-        ['/home/NAME/Desktop/', 'Desktop'],
-        ['/home/NAME/Documents/', 'Documents'],
-        ['/home/NAME/Music/', 'Music'],
-        ['/home/NAME/Pictures/', 'Pictures'],
-        ['/home/NAME/Videos/', 'Videos']
+        ['/home/tyrion/Desktop/', 'Desktop'],
+        ['/home/tyrion/Documents/', 'Documents'],
+        ['/home/tyrion/Music/', 'Music'],
+        ['/home/tyrion/Pictures/', 'Pictures'],
+        ['/home/tyrion/Videos/', 'Videos'],
+        ['/home/tyrion/Sites/', 'Sites'],
+        ['/home/tyrion/Backup/', 'Backup' ],
 	]
 
 	#File Paths to pickle files
-	PICKLE_FTP_FILEPATH = 'pickles/ftp_filesizes.pickle'
-	PICKLE_USB_FILEPATH = 'pickles/usb_filesizes.pickle'	
-	PICKLE_ACTIVE_FILEPATH = 'pickles/active.pickle'
+	PICKLE_FTP_FILEPATH = os.environ.get('PICKLE_FTP_FILEPATH', '')
+	PICKLE_ACTIVE_FILEPATH = os.environ.get('PICKLE_ACTIVE_FILEPATH', '')
 
-	FTP_BACKUP = True
-	FTP_HOST = '192.168.1.xxx'
-	FTP_USER = 'NAME'
-	FTP_PASSWORD = ''
+	FTP_BACKUP = os.environ.get('FTP_BACKUP', 'true').lower() == 'true'
+	FTP_HOST = os.environ.get('FTP_HOST', '')
+	FTP_USER = os.environ.get('FTP_USER', '')
+	FTP_PASSWORD = os.environ.get('FTP_PASSWORD', '')
 
-	SFTP_BACKUP = True
-	SFTP_HOST = '192.168.1.xxx'
-	SFTP_USER = 'NAME'
-	SFTP_PASSWORD = ''
+	SFTP_BACKUP = os.environ.get('SFTP_BACKUP', 'true').lower() == 'true'
+	SFTP_HOST = os.environ.get('SFTP_HOST', '')
+	SFTP_USER = os.environ.get('SFTP_USER', '')
+	SFTP_PASSWORD = os.environ.get('SFTP_PASSWORD', '')
 
-	USB_BACKUP = True
-	USB_DIR = '/media/NAME/usb-backup/'
+	USB_BACKUP = os.environ.get('USB_BACKUP', 'false').lower() == 'true'
+	USB_DIR = os.environ.get('USB_DIR', '')
 
-	ENCRYPTION_KEY = ''
+	FOLDER_BACKUP = os.environ.get('FOLDER_BACKUP', 'true').lower() == 'true'
+	FOLDER_DIR = os.environ.get('FOLDER_DIR', '')
 
-	TMP_FOLDER = '/home/NAME/temp/'
+	ENCRYPTION_KEY = os.environ.get('ENCRYPTION_KEY', '')
+
+	TMP_FOLDER = os.environ.get('TMP_FOLDER', '')
 
 
 	def __init__(self):
@@ -54,24 +58,36 @@ class Backup:
 
 		active_script = self.pickle_load(self.PICKLE_ACTIVE_FILEPATH)
 
-		if active_script is 0:
+		if active_script == 0:
+			self.clean_up()
 			# Backup is now active. Prevent it from running again
 			self.pickle_dump(self.PICKLE_ACTIVE_FILEPATH, 1)
 
-			#FTP backup
-			if self.check_conditions('ftp'):
-				backup_info = self.check_filesizes(self.PICKLE_FTP_FILEPATH, 'ftp')
-				self.start_backup(backup_info)
+			backup_info = self.check_filesizes(self.PICKLE_FTP_FILEPATH)
+			
+			if backup_info[0] != 0:
+				self.compress_files(backup_info[0])
 
-			#USB backup
-			if self.check_conditions('usb'):
-				backup_info = self.check_filesizes(self.PICKLE_USB_FILEPATH, 'usb')
-				self.start_backup(backup_info)
+				#USB backup
+				if self.check_conditions('usb'):
+					self.copy_to_usb()
+				
+				#Folder backup
+				if self.check_conditions('folder'):
+					self.copy_to_folder()
+
+				#FTP backup
+				if self.check_conditions('ftp'):
+					self.upload_files()
+
+				folders_with_stat = self.get_folder_stats()
+				self.pickle_dump(self.PICKLE_FTP_FILEPATH, folders_with_stat)
+				self.clean_up()
 
 			self.pickle_dump(self.PICKLE_ACTIVE_FILEPATH, 0)
 			print('All done!')
 
-	def check_filesizes(self, filepath, bktype):
+	def check_filesizes(self, filepath):
 			# Check if pickle file is empty
 			if os.path.getsize(filepath) > 0:
 				filesizes_list = self.pickle_load(filepath)
@@ -89,32 +105,17 @@ class Backup:
 				
 				# Clean up old files, compress files, upload files, clean up again, and update the filesize pickle fileade
 				if success:
-					return [updated, filepath, bktype]
+					return [updated]
 				else:
-					return [0, filepath, bktype]
+					return [0]
 			else:
 				# Clean up old files, compress files, upload files, clean up again, and update the filesize pickle fileade
-				return [self.FOLDERS, filepath, bktype]
-
-	def start_backup(self, info):
-		self.clean_up()
-		# Only execute if there has been changes in one fo the folders
-		if info[0] is not 0:
-			self.compress_files(info[0])
-			if info[2] is 'usb':
-				self.copy_to_usb()
-			if info[2] is 'ftp':
-				self.upload_files()
-			self.clean_up()
-
-			# Save updated folder sizes to pickle file for next run
-			folders_with_stat = self.get_folder_stats()
-			self.pickle_dump(info[1], folders_with_stat)
+				return [self.FOLDERS]
 
 
 	def check_conditions(self, ctype):
 		success = False
-		if self.FTP_BACKUP and ctype is 'ftp':
+		if self.FTP_BACKUP and ctype == 'ftp':
 			s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			s.settimeout(5)
 			#check network backup
@@ -125,8 +126,12 @@ class Backup:
 				pass
 			s.close()
 
-		if self.USB_BACKUP and ctype is 'usb':
+		if self.USB_BACKUP and ctype == 'usb':
 			if os.path.ismount(self.USB_DIR):
+				success = True
+
+		if self.FOLDER_BACKUP and ctype == 'folder':
+			if os.path.exists(self.FOLDER_DIR):
 				success = True
 
 		if self.SFTP_BACKUP:
@@ -148,6 +153,7 @@ class Backup:
 				rc = subprocess.call(r'"C:\Program Files\7-zip\7z.exe" a -p' + self.ENCRYPTION_KEY + ' "' + self.TMP_FOLDER + name.hexdigest() + '.7z' + '" "' + item[0] + '" -mhe')
 	
 	def clean_up(self):
+		print('clean up')
 		listdir = os.listdir(self.TMP_FOLDER)
 		for item in listdir:
 			os.remove(self.TMP_FOLDER + item)
@@ -156,12 +162,23 @@ class Backup:
 	def copy_to_usb(self):
 		# Check first to make sure USB Backup is True and USB stick is plugged in
 		if self.USB_BACKUP and os.path.ismount(self.USB_DIR):
+			print('copy to usb')
 			listdir = os.listdir(self.TMP_FOLDER)
 			for item in listdir:
 				print('Copy: ' + item)
 				shutil.copyfile(self.TMP_FOLDER + item, self.USB_DIR + item)
 
+	def copy_to_folder(self):
+		# Check first to make sure USB Backup is True and USB stick is plugged in
+		if self.FOLDER_BACKUP and os.path.exists(self.FOLDER_DIR):
+			print('copy to folder')
+			listdir = os.listdir(self.TMP_FOLDER)
+			for item in listdir:
+				print('Copy: ' + item)
+				shutil.copyfile(self.TMP_FOLDER + item, self.FOLDER_DIR + item)
+
 	def upload_files(self):
+		print('upload files')
 		if self.FTP_BACKUP:
 			# Check to make server is up, if yes back up files! Test
 			s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -193,8 +210,6 @@ class Backup:
 						sftp.put(self.TMP_FOLDER + item)
 			except socket.error as e:
 				print('Error on connect')
-
-
 
 	def folder_size(self, path='.'):
 	    total = 0
