@@ -2,6 +2,7 @@
 from ftplib import FTP_TLS
 import zipfile
 import os
+import time
 import sys
 import pickle
 import subprocess
@@ -10,7 +11,6 @@ import socket
 import shutil
 from dotenv import load_dotenv
 load_dotenv()
-
 # Put this in a class with picklein and out
 class Backup:
 
@@ -49,6 +49,11 @@ class Backup:
 
 	TMP_FOLDER = os.environ.get('TMP_FOLDER', '')
 
+	USE_VPN = os.environ.get('USE_VPN', 'false').lower() == 'true'
+	VPN_OVPN_FILE = os.environ.get('VPN_OVPN_FILE', '')
+	VPN_USERNAME = os.environ.get('VPN_USERNAME', '')
+	VPN_PASSWORD = os.environ.get('VPN_PASSWORD', '')
+
 
 	def __init__(self):
 		# Small arguement resets active pickle. (In case uploads were aborted somehow)
@@ -76,9 +81,17 @@ class Backup:
 				if self.check_conditions('folder'):
 					self.copy_to_folder()
 
+                # Connect to the VPN if required
+				if self.USE_VPN:
+					self.connect_vpn()
+
 				#FTP backup
 				if self.check_conditions('ftp'):
 					self.upload_files()
+
+                # Disconnect from the VPN if connected
+				if self.USE_VPN:
+					self.disconnect_vpn()
 
 				folders_with_stat = self.get_folder_stats()
 				self.pickle_dump(self.PICKLE_FTP_FILEPATH, folders_with_stat)
@@ -178,25 +191,26 @@ class Backup:
 				shutil.copyfile(self.TMP_FOLDER + item, self.FOLDER_DIR + item)
 
 	def upload_files(self):
+		remote_upload_dir = os.environ.get('REMOTE_UPLOAD_DIR', '')
 		print('upload files')
 		if self.FTP_BACKUP:
 			# Check to make server is up, if yes back up files! Test
 			s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			s.settimeout(5)
 			try:
-			    s.connect((self.FTP_HOST, 21))
+				s.connect((self.FTP_HOST, 21))
 
-			    listdir = os.listdir(self.TMP_FOLDER)
+				listdir = os.listdir(self.TMP_FOLDER)
 
-			    ftps = FTP_TLS(self.FTP_HOST)
-			    ftps.login(self.FTP_USER, self.FTP_PASSWORD)
-			    ftps.set_pasv(True)
+				ftps = FTP_TLS(self.FTP_HOST)
+				ftps.login(self.FTP_USER, self.FTP_PASSWORD)
+				ftps.set_pasv(True)
+				ftps.cwd(remote_upload_dir)  # Change to the remote upload directory
+				for item in listdir:
+					print('Upload: ' + item)
+					ftps.storbinary('STOR ' + item, open(self.TMP_FOLDER + item,'rb'), 1024)
 
-			    for item in listdir:
-			    	print('Upload: ' + item)
-			    	ftps.storbinary('STOR ' + item, open(self.TMP_FOLDER + item,'rb'), 1024)
-
-			    ftps.quit()
+				ftps.quit()
 			except socket.error as e:
 				print("Error on connect")
 			s.close()
@@ -205,6 +219,7 @@ class Backup:
 			try:
 				listdir = os.listdir(self.TMP_FOLDER)
 				with pysftp.Connection(self.SFTP_HOST, username=self.SFTP_USER, password=self.SFTP_PASSWORD) as sftp:
+					sftp.cwd(remote_upload_dir)  # Change to the remote upload directory
 					for item in listdir:
 						print('Upload: ' + item)
 						sftp.put(self.TMP_FOLDER + item)
@@ -236,6 +251,26 @@ class Backup:
 	def pickle_dump(self, filepath, arr):
 		with open(filepath, 'wb') as file:
 			pickle.dump(arr, file)
+
+    # New methods to handle VPN connection
+	def connect_vpn(self):
+		print("Connecting to VPN...")
+		with open("vpn_auth.txt", "w") as auth_file:
+			auth_file.write(self.VPN_USERNAME + "\n")
+			auth_file.write(self.VPN_PASSWORD)
+
+		cmd = ["sudo", "openvpn", "--config", self.VPN_OVPN_FILE, "--auth-user-pass", "vpn_auth.txt", "--daemon"]
+		subprocess.run(cmd, check=True)
+		os.remove("vpn_auth.txt")
+
+		time.sleep(10)  # Wait for the VPN connection to establish
+		print("Connected to VPN.")
+
+	def disconnect_vpn(self):
+		print("Disconnecting from VPN...")
+		cmd = ["sudo", "killall", "openvpn"]
+		subprocess.run(cmd, check=True)
+		print("Disconnected from VPN.")
 
 
 backup = Backup()
