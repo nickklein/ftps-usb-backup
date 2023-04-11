@@ -16,13 +16,13 @@ class Backup:
 
 	# Select all the directories that need to be backed up
 	FOLDERS = [
-        ['/home/tyrion/Desktop/', 'Desktop'],
-        ['/home/tyrion/Documents/', 'Documents'],
-        ['/home/tyrion/Music/', 'Music'],
-        ['/home/tyrion/Pictures/', 'Pictures'],
-        ['/home/tyrion/Videos/', 'Videos'],
-        ['/home/tyrion/Sites/', 'Sites'],
-        ['/home/tyrion/Backup/', 'Backup' ],
+		[os.path.expanduser('~/Desktop/'), 'Desktop'],
+		[os.path.expanduser('~/Documents/'), 'Documents'],
+		[os.path.expanduser('~/Music/'), 'Music'],
+		[os.path.expanduser('~/Pictures/'), 'Pictures'],
+		[os.path.expanduser('~/Videos/'), 'Videos'],
+		[os.path.expanduser('~/Sites/'), 'Sites'],
+		[os.path.expanduser('~/Backup/'), 'Backup'],
 	]
 
 	#File Paths to pickle files
@@ -156,7 +156,7 @@ class Backup:
 		print('clean up')
 		listdir = os.listdir(self.TMP_FOLDER)
 		for item in listdir:
-			os.remove(self.TMP_FOLDER + item)
+			os.remove(os.path.join(self.TMP_FOLDER, item))
 
 
 	def copy_to_usb(self):
@@ -229,13 +229,13 @@ class Backup:
 		return folders_with_stat
 
 	def pickle_load(self, filepath):
-		filesizes_pickle = open(filepath,'rb')
-		filesizes_list = pickle.load(filesizes_pickle)
+		with open(filepath, 'rb') as filesizes_pickle:
+			filesizes_list = pickle.load(filesizes_pickle)
 		return filesizes_list
 
 	def pickle_dump(self, filepath, arr):
-		file = open(filepath,'wb')
-		pickle.dump(arr, file)
+		with open(filepath, 'wb') as file:
+			pickle.dump(arr, file)
 
 
 backup = Backup()
