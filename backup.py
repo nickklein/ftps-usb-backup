@@ -1,25 +1,12 @@
 #!/usr/bin/python3 
-from sftp_uploader import SFTPUploader 
-from s3_uploader import S3Uploader 
-from local_uploader import LocalUploader 
+from uploads.sftp_uploader import SFTPUploader 
+from uploads.s3_uploader import S3Uploader 
+from uploads.local_uploader import LocalUploader 
 from config_manager import ConfigManager
 from state_manager import StateManager
 from folder_manager import FolderManager
 from compressor import Compressor
-from ftplib import FTP_TLS
-import zipfile
-import os
-import time
 import sys
-import pickle
-import subprocess
-import hashlib
-import socket
-import pysftp
-import shutil
-import boto3
-from dotenv import load_dotenv
-load_dotenv()
 
 class Backup:
 
@@ -71,13 +58,12 @@ class Backup:
                     uploader.upload(file_path)           
 
             self.state_manager.save_folder_sizes(current_stats)
-
+            self.state_manager.set_backup_active(False)
         except Exception as e:
             print(f"An error occured: {e}")
         finally:
             print('All done!')
             self.folder_manager.clean_up();
-            self.state_manager.set_backup_active(False)
 
     def initialize_backup(self):
         uploaders = []

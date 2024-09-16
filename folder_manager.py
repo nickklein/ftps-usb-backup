@@ -29,6 +29,7 @@ class FolderManager:
             previous_size = previous_sizes.get(path)
             if previous_size != size:
                 folders_to_backup.append([path, name])
+        print(folders_to_backup)
         return folders_to_backup
 
     def clean_up(self):

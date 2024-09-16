@@ -10,8 +10,17 @@ class Compressor:
     def compress(self, folder):
         folder_path = folder[0]
         folder_name = folder[1]
+        base_dir = folder[2] if len(folder) > 2 else '/'
+
         name_hash = hashlib.md5(folder_name.encode()).hexdigest()
         output_file = os.path.join(self.tmp_folder, f"{name_hash}.7z")
+        # Calculate the relative path from the base directory
+        relative_path = os.path.relpath(folder_path, base_dir)
+
+        # Change working directory to the base directory
+        current_dir = os.getcwd()
+        os.chdir(base_dir)
+
         cmd = [
             '7z', 'a',
             f'-p{self.encryption_key}',
@@ -19,7 +28,7 @@ class Compressor:
             output_file,
             '-xr!node_modules', '-xr!vendor', '-xr!_ignore_backup',
             '-mhe',
-            folder_path
+            relative_path
         ]
         try:
             subprocess.check_call(cmd)
@@ -28,4 +37,6 @@ class Compressor:
         except subprocess.CalledProcessError as e:
             print(f"Error compressing {folder_name}: {e}")
             return None
+        finally:
+            os.chdir(current_dir)
 

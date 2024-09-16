@@ -14,13 +14,14 @@ class ConfigManager:
         self.PICKLE_ACTIVE_FILEPATH = os.getenv('PICKLE_ACTIVE_FILEPATH', '')
         self.PICKLE_FTP_FILEPATH = os.getenv('PICKLE_FTP_FILEPATH', '')
         self.FOLDERS = [
-            [os.path.expanduser('~/Backup/'), 'Backup'],
-            # [os.path.expanduser('~/Desktop/'), 'Desktop'],
-            # [os.path.expanduser('~/Documents/'), 'Documents'],
-            # [os.path.expanduser('~/Music/'), 'Music'],
-            # [os.path.expanduser('~/Pictures/'), 'Pictures'],
-            # [os.path.expanduser('~/Videos/'), 'Videos'],
-            # [os.path.expanduser('~/Sites/'), 'Sites'],
+            [os.path.expanduser('~/Backup/'), 'Backup', os.path.expanduser('~/')],
+            [os.path.expanduser('~/Pictures/IRL'), 'IRL', os.path.expanduser('~/')],
+            [os.path.expanduser('~/Pictures/Wallpaper'), 'IRL', os.path.expanduser('~/')],
+            [os.path.expanduser('~/Desktop/'), 'Desktop', os.path.expanduser('~/')],
+            [os.path.expanduser('~/Documents/'), 'Documents', os.path.expanduser('~/')],
+            [os.path.expanduser('~/Music/'), 'Music', os.path.expanduser('~/')],
+            [os.path.expanduser('~/Videos/'), 'Videos', os.path.expanduser('~/')],
+            [os.path.expanduser('~/Sites/'), 'Sites', os.path.expanduser('~/')],
         ]
 
         # Backup destinations
